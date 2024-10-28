@@ -1,16 +1,23 @@
 # IAT-Address-Locator
-A pykd module to locate specific function addresses within the Windows Import Address Table (IAT) in WinDbg.
+A pykd module to locate specific function addresses within the Windows Import Address Table (IAT) in WinDbg. 
 
-Firstly, you will need to load `pykd` inside WinDbg:
+
+## Usage
+To start, ensure `pykd.dll` is located in `C:\Program Files\Windows Kits\10\Debuggers\x86\winext` (path may vary depending on OS and WinDbg version).
+
+Next, load `pykd` inside WinDbg:
 ```shell
 .load pykd
 ```
 
-Then, you can use-it directly on your targeted module:
+Then, you can use the script directly on your target module:
 ```shell
 !py C:\Tools\iatloc.py CSFTPAV6 VirtualAlloc
 ```
 
 ![image](https://github.com/user-attachments/assets/d3880894-fa75-426e-b499-e194dcd75601)
 
+
+## Disclaimer
+This script was created to automate the task of locating specific function addresses in the IAT during my EXP-301 journey. While it worked well for my OSED certification studies, I do not guarantee portability accross up-to-date WinDbg.
 
