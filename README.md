@@ -1,5 +1,5 @@
 # IAT-Address-Locator
-A pykd module to locate specific function addresses within the Windows Import Address Table (IAT) in WinDbg. 
+A pykd module to locate specific function addresses within the Windows Import Address Table (IAT) in WinDbg. Useful to build ROP chain.
 
 
 ## Usage
@@ -16,6 +16,10 @@ Then, you can use the script directly on your target module:
 ```
 
 ![image](https://github.com/user-attachments/assets/d3880894-fa75-426e-b499-e194dcd75601)
+
+If the desired function is not loaded inside IAT, the script will give you some offset to play with:
+
+![image](https://github.com/user-attachments/assets/a36ba7f8-92cf-400c-a3e7-428eb3a6c25a)
 
 
 ## Disclaimer
