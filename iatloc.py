@@ -352,6 +352,8 @@ def main():
                 "KERNEL32!GetLastError",
                 "KERNEL32!GetProcAddressStub",
                 "KERNEL32!CloseHandle",
+                "KERNEL32!Sleep",
+                "KERNEL32!HeapAlloc",
             ]
 
             for function in subsidiary_functions:
