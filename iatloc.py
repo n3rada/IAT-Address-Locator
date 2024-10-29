@@ -356,7 +356,7 @@ def main():
     else:
 
         if not search_in_module(module_name, symbol_name):
-            pykd.dprintln("[x] Not found, use subsidiary functions to reach your needs")
+            pykd.dprintln("\n[+] Use subsidiary functions to reach your needs")
             pykd.dprintln(f"[i] Offset = {symbol_name} - <subsidiary_function>")
 
             subsidiary_functions = [
@@ -381,7 +381,7 @@ def main():
                 ) & 0xFFFFFFFF  # 32-bit negation
 
                 pykd.dprintln(f"\n[+] {function}: {hex(function_address)}")
-                pykd.dprintln(f"|-> Offset to {symbol_name}: {hex(offset)}")
+                pykd.dprintln(f"|-> Offset: {hex(offset)}")
                 pykd.dprintln(f"|-> Negated offset: {hex(neg_offset)}")
 
             pykd.dprintln(
