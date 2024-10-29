@@ -22,7 +22,8 @@ If the desired function is not loaded inside IAT, the script will give you some 
 !py C:\Tools\iatloc.py CSFTPAV6 WriteProcessMemory
 ```
 
-![image](https://github.com/user-attachments/assets/9c16070d-b50c-47b7-973d-63be8744ea96)
+![image](https://github.com/user-attachments/assets/70456737-adcd-4b42-916d-a14aa5e76b80)
+
 
 ## Disclaimer
 This script was created to automate the task of locating specific function addresses in the IAT during my EXP-301 journey. While it worked well for my OSED certification studies, I do not guarantee portability accross up-to-date WinDbg.
