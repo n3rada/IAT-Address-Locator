@@ -250,49 +250,6 @@ def get_suitable_modules() -> list:
     return results
 
 
-def search_in_module(module_name: str, symbol_name: str) -> bool:
-    """
-    Search for a specific symbol within the Import Address Table (IAT) of a module.
-
-    This function retrieves the base address of the specified module, iterates
-    through its IAT entries, and checks if any entry matches the specified symbol name.
-    If the symbol is found, it prints the IAT address and the address it points to.
-
-    Args:
-        module_name (str): The name of the module in which to search for the symbol.
-        symbol_name (str): The name of the symbol to search for within the module's IAT.
-
-    Returns:
-        bool: Returns True if the symbol is found in the IAT; otherwise, returns False.
-
-    Output:
-        Prints formatted information to WinDbg, indicating the module being searched,
-        IAT address of the found symbol, and the address the symbol points to.
-        If the symbol is not found, a message indicating so is printed.
-
-    Example:
-        search_in_module("KERNEL32", "VirtualAlloc")
-    """
-    base_address = get_module_base(module_name)
-    if not base_address:
-        pykd.dprintln(f"[x] Failed to retrieve base address for {module_name}")
-        return False
-
-    pykd.dprintln(
-        f"\n================= Searching in {module_name} ({hex(base_address)})"
-    )
-
-    for entry_address, function_pointer, symbol in get_iat_entries(module_name):
-        if symbol_name in symbol:
-            pykd.dprintln(f"[+] Found {symbol}")
-            pykd.dprintln(f"|-> IAT address: {hex(entry_address)}")
-            pykd.dprintln(f"|-> Points to: {hex(function_pointer)}")
-            return True
-
-    pykd.dprintln(f"[x] {symbol_name} not found")
-    return False
-
-
 def main():
     parser = argparse.ArgumentParser(
         prog="iatloc",
@@ -333,7 +290,7 @@ def main():
 
     if not target_address:
         pykd.dprintln(f"[x] Could not resolve {specified_module}!{function_name}")
-        sys.exit(1)
+        return
 
     pykd.dprintln(f"[+] {symbol_name} is located at {hex(target_address)}\n")
 
@@ -347,15 +304,42 @@ def main():
         for module_name in suitable_modules:
             base_address = get_module_base(module_name)
             if not base_address:
-                pykd.dprintln(
-                    f"[x] Failed to retrieve base address for module: {module_name}"
-                )
-                continue
+                pykd.dprintln(f"[x] Failed to retrieve base address for {module_name}")
+                return
 
-            search_in_module(module_name, symbol_name)
+            pykd.dprintln(
+                f"\n================= Searching in {module_name} ({hex(base_address)})"
+            )
+
+            for entry_address, function_pointer, symbol in iat_entries:
+                if symbol_name in symbol:
+                    pykd.dprintln(f"[+] Found {symbol}")
+                    pykd.dprintln(f"|-> IAT address: {hex(entry_address)}")
+                    pykd.dprintln(f"|-> Points to: {hex(function_pointer)}")
+                    return
     else:
 
-        if not search_in_module(module_name, symbol_name):
+        base_address = get_module_base(module_name)
+        if not base_address:
+            pykd.dprintln(f"[x] Failed to retrieve base address for {module_name}")
+            sys.exit(1)
+
+        pykd.dprintln(
+            f"\n================= Searching in {module_name} ({hex(base_address)})"
+        )
+
+        iat_entries = get_iat_entries(module_name)
+
+        for entry_address, function_pointer, symbol in iat_entries:
+            if symbol_name in symbol:
+                # Found it!
+                pykd.dprintln(f"[+] Found {symbol}")
+                pykd.dprintln(f"|-> IAT address: {hex(entry_address)}")
+                pykd.dprintln(f"|-> Points to: {hex(function_pointer)}")
+                break
+
+        else:
+            # Didn't find anything..
             pykd.dprintln("\n[+] Use subsidiary functions to reach your needs")
             pykd.dprintln(f"[i] Offset = {symbol_name} - <subsidiary_function>")
 
@@ -374,15 +358,20 @@ def main():
                 if function_address == 0:
                     continue  # Skip if function not found
 
-                # Calculate offset and negated offset
-                offset = target_address - function_address
-                neg_offset = (
-                    0xFFFFFFFF - abs(offset) + 1
-                ) & 0xFFFFFFFF  # 32-bit negation
+                for entry_address, function_pointer, symbol in iat_entries:
+                    if function in symbol:
+                        # Calculate offset and negated offset
+                        offset = target_address - function_address
+                        neg_offset = (
+                            0xFFFFFFFF - abs(offset) + 1
+                        ) & 0xFFFFFFFF  # 32-bit negation
 
-                pykd.dprintln(f"\n[+] {function}: {hex(function_address)}")
-                pykd.dprintln(f"|-> Offset: {hex(offset)}")
-                pykd.dprintln(f"|-> Negated offset: {hex(neg_offset)}")
+                        pykd.dprintln(f"\n[+] Found {symbol}")
+                        pykd.dprintln(f"|-> IAT adddress: {hex(entry_address)}")
+                        pykd.dprintln(f"|-> Points to: {hex(function_pointer)}")
+                        pykd.dprintln(f"|-> Offset: {hex(offset)}")
+                        pykd.dprintln(f"|-> Negated offset: {hex(neg_offset)}")
+                        break
 
             pykd.dprintln(
                 "\n[i] Each offset will always remain the same for the current patch level and OS version"
