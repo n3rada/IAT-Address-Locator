@@ -1,5 +1,4 @@
 # Built-in imports
-import sys
 import argparse
 
 # Third party libraries
@@ -322,7 +321,7 @@ def main():
         base_address = get_module_base(module_name)
         if not base_address:
             pykd.dprintln(f"[x] Failed to retrieve base address for {module_name}")
-            sys.exit(1)
+            return
 
         pykd.dprintln(
             f"\n================= Searching in {module_name} ({hex(base_address)})"
@@ -382,4 +381,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    sys.exit(0)
