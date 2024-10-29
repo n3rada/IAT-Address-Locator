@@ -310,12 +310,12 @@ def main():
                 f"\n================= Searching in {module_name} ({hex(base_address)})"
             )
 
-            for entry_address, function_pointer, symbol in iat_entries:
+            for entry_address, function_pointer, symbol in get_iat_entries(module_name):
                 if symbol_name in symbol:
                     pykd.dprintln(f"[+] Found {symbol}")
                     pykd.dprintln(f"|-> IAT address: {hex(entry_address)}")
                     pykd.dprintln(f"|-> Points to: {hex(function_pointer)}")
-                    return
+                    break
     else:
 
         base_address = get_module_base(module_name)
