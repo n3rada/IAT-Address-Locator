@@ -22,7 +22,8 @@ If the desired function is not loaded inside IAT, the script will give you some 
 !py C:\Tools\iatloc.py CSFTPAV6 WriteProcessMemory
 ```
 
-![image](https://github.com/user-attachments/assets/70456737-adcd-4b42-916d-a14aa5e76b80)
+![image](https://github.com/user-attachments/assets/d928acfe-3cc9-4112-a2a6-4a2e67765cf4)
+
 
 
 ## Disclaimer
