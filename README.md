@@ -1,5 +1,5 @@
 # IAT Address Locator
-A pykd module to locate specific function addresses within the Windows Import Address Table (IAT) in WinDbg. Useful when you want to bypass DEP and build ROP chain using Win32 API skeleton such as `VirtualAlloc`.
+A pykd module to locate specific function addresses within the Windows Import Address Table (IAT) in WinDbg. Useful when you want to bypass Data Execution Prevention (DEP) and build Return-Oriented Programming (ROP) chains using Win32 API skeleton such as `VirtualAlloc`.
 
 ## Usage
 To start, ensure [`pykd.dll`](https://github.com/ksmyth/pykd) is located in `C:\Program Files\Windows Kits\10\Debuggers\x86\winext` (path may vary depending on OS and WinDbg version).
