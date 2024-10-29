@@ -24,6 +24,13 @@ If the desired function is not loaded inside IAT, the script will give you some 
 
 ![image](https://github.com/user-attachments/assets/d928acfe-3cc9-4112-a2a6-4a2e67765cf4)
 
+If you want to search through all the eligible modules, you can just omit the module as an argument:
+
+```shell
+!py C:\Tools\iatloc.py VirtualAlloc
+```
+
+![image](https://github.com/user-attachments/assets/e84bc898-bd94-47bf-a718-00aebe9ca998)
 
 
 ## Disclaimer
