@@ -316,6 +316,8 @@ def main():
                     pykd.dprintln(f"|-> IAT address: {hex(entry_address)}")
                     pykd.dprintln(f"|-> Points to: {hex(function_pointer)}")
                     break
+            else:
+                pykd.dprintln(f"[x] {symbol_name} not found")
     else:
 
         base_address = get_module_base(module_name)
@@ -338,6 +340,7 @@ def main():
                 break
 
         else:
+            pykd.dprintln(f"[x] {symbol_name} not found")
             # Didn't find anything..
             pykd.dprintln("\n[+] Use subsidiary functions to reach your needs")
             pykd.dprintln(f"[i] Offset = {symbol_name} - <subsidiary_function>")
