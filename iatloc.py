@@ -6,7 +6,7 @@ import argparse
 import pykd
 
 
-def get_os_version():
+def get_os_version() -> dict:
     """Retrieve the current OS version and patch level using vertarget."""
     try:
         vertarget_output = pykd.dbgCommand("vertarget")
@@ -51,38 +51,61 @@ def banner():
         pykd.dprintln(f"Build Info: {os_info.get('Build Info', 'Unknown')}")
     else:
         pykd.dprintln("Unable to retrieve OS version and patch level.")
-    pykd.dprintln("\n======================================================================\n")
+    pykd.dprintln(
+        "\n======================================================================\n"
+    )
 
 
-def get_module_base(module_name: str):
+def get_module_base(module_name: str) -> int:
     """Retrieve the base address of a module."""
-    try:
-        module = pykd.module(module_name)
-        return module.begin()
-    except Exception as e:
-        pykd.dprintln(f"Error retrieving module base for {module_name}: {e}")
-        return None
+    return pykd.module(module_name).begin()
 
 
 def get_iat_rva_and_size(module_name: str) -> tuple:
-    """Run !dh on the module and extract the IAT RVA and Size."""
-    try:
-        dh_output = pykd.dbgCommand(f"!dh {module_name} -f")
-        for line in dh_output.splitlines():
-            if "Import Address Table Directory" in line:
-                # ['4A000', '[', '28C]', 'address', '[size]', 'of', 'Import', 'Address', 'Table', 'Directory']
-                parts = line.split()
-                rva = parts[0]
-                size = parts[2][:-1]
+    """Retrieve the Relative Virtual Address (RVA) and size of the Import Address Table (IAT) for a specified module.
 
-                return int(rva, 16), int(size, 16)
-    except Exception as e:
-        pykd.dprintln(f"Error retrieving IAT for {module_name}: {e}")
+    This function uses the `!dh` command in WinDbg to examine the headers of a specified module
+    and extracts the RVA and size of the Import Address Table Directory.
+
+    Args:
+        module_name (str): The name of the module for which to retrieve the IAT's RVA and size.
+
+    Returns:
+        tuple: A tuple containing:
+            - rva (int): The Relative Virtual Address of the IAT, or `None` if not found.
+            - size (int): The size of the IAT, or `None` if not found.
+
+    """
+    dh_output = pykd.dbgCommand(f"!dh {module_name} -f")
+    for line in dh_output.splitlines():
+        if "Import Address Table Directory" in line:
+            # ['4A000', '[', '28C]', 'address', '[size]', 'of', 'Import', 'Address', 'Table', 'Directory']
+            parts = line.split()
+            rva = parts[0]
+            size = parts[2][:-1]
+
+            return int(rva, 16), int(size, 16)
+
     return None, None
 
 
 def get_iat_entries(module_name: str) -> list:
-    """Get Import Address Table (IAT) entries for a given module."""
+    """
+    Retrieve the Import Address Table (IAT) entries for a specified module.
+
+    This function locates the Import Address Table (IAT) in the specified module
+    and retrieves each entry, which includes the address in the IAT, the pointer
+    to the function, and the associated symbol name if available.
+
+    Args:
+        module_name (str): The name of the module from which to retrieve the IAT entries.
+
+    Returns:
+        list: A list of tuples, where each tuple contains:
+            - entry_address (int): The address within the IAT where the function pointer is located.
+            - function_pointer (int): The pointer to the actual function in the module.
+            - symbol (str): The symbol name associated with the function pointer, if available.
+    """
     base_address = get_module_base(module_name)
     if not base_address:
         return []
@@ -90,7 +113,7 @@ def get_iat_entries(module_name: str) -> list:
     # Get the IAT RVA and size using !dh
     iat_rva, iat_size = get_iat_rva_and_size(module_name)
     if iat_rva is None or iat_size == 0:
-        pykd.dprintln(f"[x] Could not locate IAT")
+        pykd.dprintln("[x] Could not locate IAT")
         return []
 
     pykd.dprintln("[+] IAT Found")
@@ -101,7 +124,7 @@ def get_iat_entries(module_name: str) -> list:
     iat_start = base_address + iat_rva
     iat_end = iat_start + iat_size
 
-    pykd.dprintln(f"|-> Range: {hex(iat_start)} to {hex(iat_end)}")
+    pykd.dprintln(f"|-> Address range: {hex(iat_start)} to {hex(iat_end)}\n")
 
     iat_entries = []
 
@@ -129,8 +152,22 @@ def get_iat_entries(module_name: str) -> list:
 
 def resolve_function(full_function_name: str) -> tuple:
     """
-    Retrieve the address of a specific function from a module.
-    Returns a tuple of (address, symbol name) or (0, "") if not found.
+    Resolve the memory address of a specified function, including common variations.
+
+    This function attempts to locate the memory address of a given function by using the
+    WinDbg `x` (examine symbols) command. It first tries the exact function name provided,
+    and if not found, it checks for common variations such as `Stub`, `A` (ANSI), and `W`
+    (Unicode) suffixes. If multiple addresses are returned, the function logs a warning
+    and defaults to using the first address.
+
+    Args:
+        full_function_name (str): The fully qualified name of the function to resolve
+                                  (e.g., "KERNEL32!VirtualAlloc").
+
+    Returns:
+        tuple: A tuple containing:
+            - address (int): The resolved memory address of the function, or 0 if not found.
+            - symbol_name (str): The symbol name of the function, or an empty string if not found.
     """
     # Primary search
     output = pykd.dbgCommand(f"x {full_function_name}")
@@ -170,20 +207,30 @@ def resolve_function(full_function_name: str) -> tuple:
 
 
 def get_suitable_modules() -> list:
-    """Return a list of all non-ASLR modules suitable for DEP bypass using !nmod, excluding those with 0x00 in the upper address bytes."""
+    """
+    Retrieve a list of non-ASLR modules suitable for DEP bypass, excluding those with 0x00 in the upper address bytes.
 
+    This function runs the `!nmod` command to list modules and filters the output for modules
+    that do not have ASLR enabled. It also excludes modules with null bytes (0x00) in the upper
+    address bytes.
+
+    Raises:
+        ModuleNotFoundError: Raised if the narly extension cannot be loaded to provide `!nmod`.
+
+    Returns:
+        list: A list of module names that meet the non-ASLR and non-null-byte criteria.
+    """
     nmod_output = pykd.dbgCommand("!nmod")
 
     # If the command does not work, try loading the narly extension
-    if "No export !nmod found" in nmod_output:
-        pykd.dprintln("[!] !nmod command not found. Attempting to load the Narly extension with `.load narly`.")
+    if nmod_output is None:
         load_output = pykd.dbgCommand(".load narly")
-        
-        if '!nmod' not in load_output:
+
+        if "!nmod" not in load_output:
             raise ModuleNotFoundError("Failed to load the Narly extension.")
 
         return get_suitable_modules()
-    
+
     results = []
 
     # Process nmod_output to look for non-ASLR modules with no 0x00 in the upper address bytes
@@ -192,17 +239,58 @@ def get_suitable_modules() -> list:
         if "*ASLR" in line:
             break
 
-        # Split line and extract relevant information
         parts = line.split()
         module_name = parts[2]
         base_address = parts[0]
 
-
-        # Convert the base address to an integer and check for null bytes
+        # Check for null bytes
         if not base_address.startswith("00"):
             results.append(module_name)
-    
+
     return results
+
+
+def search_in_module(module_name: str, symbol_name: str) -> bool:
+    """
+    Search for a specific symbol within the Import Address Table (IAT) of a module.
+
+    This function retrieves the base address of the specified module, iterates
+    through its IAT entries, and checks if any entry matches the specified symbol name.
+    If the symbol is found, it prints the IAT address and the address it points to.
+
+    Args:
+        module_name (str): The name of the module in which to search for the symbol.
+        symbol_name (str): The name of the symbol to search for within the module's IAT.
+
+    Returns:
+        bool: Returns True if the symbol is found in the IAT; otherwise, returns False.
+
+    Output:
+        Prints formatted information to WinDbg, indicating the module being searched,
+        IAT address of the found symbol, and the address the symbol points to.
+        If the symbol is not found, a message indicating so is printed.
+
+    Example:
+        search_in_module("KERNEL32", "VirtualAlloc")
+    """
+    base_address = get_module_base(module_name)
+    if not base_address:
+        pykd.dprintln(f"[x] Failed to retrieve base address for {module_name}")
+        return False
+
+    pykd.dprintln(
+        f"\n================= Searching in {module_name} ({hex(base_address)})"
+    )
+
+    for entry_address, function_pointer, symbol in get_iat_entries(module_name):
+        if symbol_name in symbol:
+            pykd.dprintln(f"[+] Found {symbol}")
+            pykd.dprintln(f"|-> IAT address: {hex(entry_address)}")
+            pykd.dprintln(f"|-> Points to: {hex(function_pointer)}")
+            return True
+
+    pykd.dprintln(f"[x] {symbol_name} not found")
+    return False
 
 
 def main():
@@ -243,10 +331,10 @@ def main():
         f"{specified_module}!{function_name}"
     )
 
-    if target_address == 0:
+    if not target_address:
         pykd.dprintln(f"[x] Could not resolve {specified_module}!{function_name}")
         sys.exit(1)
-    
+
     pykd.dprintln(f"[+] {symbol_name} is located at {hex(target_address)}\n")
 
     if args.module is None:
@@ -254,65 +342,30 @@ def main():
         pykd.dprintln("[*] Checking in all suitable non-ASLR modules")
         for module in suitable_modules:
             pykd.dprintln(f"|-> {module}")
-        
+
         # Iterate through modules and perform IAT search in each
         for module_name in suitable_modules:
             base_address = get_module_base(module_name)
             if not base_address:
-                pykd.dprintln(f"[x] Failed to retrieve base address for module: {module_name}")
+                pykd.dprintln(
+                    f"[x] Failed to retrieve base address for module: {module_name}"
+                )
                 continue
 
-            pykd.dprintln(f"\n================= Searching in {module_name} ({hex(base_address)}) =================")
-            found = False
-
-            iat_entries = get_iat_entries(module_name)
-            for entry_address, function_pointer, symbol in iat_entries:
-                if function_name in symbol:
-                    found = True
-                    break
-
-            if found:
-                pykd.dprintln(f"[+] Found {symbol}")
-                pykd.dprintln(f"|-> IAT address: {hex(entry_address)}")
-                pykd.dprintln(f"|-> Points to: {hex(function_pointer)}")
-            else:
-                pykd.dprintln(f"[x] {symbol_name} not found in {module_name}.")
-
+            search_in_module(module_name, symbol_name)
     else:
-        base_address = get_module_base(module_name)
 
-        pykd.dprintln(f"\n================= Searching in {module_name} ({hex(base_address)}) =================")
-
-        found = False
-
-        iat_entries = get_iat_entries(module_name)
-        # Search for the function address in the IAT entries
-        for entry_address, function_pointer, symbol in iat_entries:
-            if function_name in symbol:
-                found = True
-                break
-
-
-        if found:
-            pykd.dprintln(f"[+] Found {symbol}")
-            pykd.dprintln(f"|-> IAT address: {hex(entry_address)}")
-            pykd.dprintln(f"|-> Point to: {hex(function_pointer)}")
-        else:
+        if not search_in_module(module_name, symbol_name):
             pykd.dprintln("[x] Not found, use subsidiary functions to reach your needs")
             pykd.dprintln(f"[i] Offset = {symbol_name} - <subsidiary_function>")
+
             subsidiary_functions = [
                 "KERNEL32!VirtualAllocStub",
                 "KERNEL32!WriteFile",
-                "KERNEL32!WriteConsoleA",
                 "KERNEL32!LoadLibraryAStub",
-                "KERNEL32!GetProcAddressStub",
-                "KERNEL32!CreateFileA",
-                "KERNEL32!HeapAlloc",
-                "KERNEL32!CloseHandle",
-                "NTDLL!RtlAllocateHeap",
                 "KERNEL32!GetLastError",
-                "USER32!GetMessageA",
-                "USER32!DispatchMessageA",
+                "KERNEL32!GetProcAddressStub",
+                "KERNEL32!CloseHandle",
             ]
 
             for function in subsidiary_functions:
@@ -323,7 +376,9 @@ def main():
 
                 # Calculate offset and negated offset
                 offset = target_address - function_address
-                neg_offset = (0xFFFFFFFF - abs(offset) + 1) & 0xFFFFFFFF  # 32-bit negation
+                neg_offset = (
+                    0xFFFFFFFF - abs(offset) + 1
+                ) & 0xFFFFFFFF  # 32-bit negation
 
                 pykd.dprintln(f"\n[+] {function}: {hex(function_address)}")
                 pykd.dprintln(f"|-> Offset to {symbol_name}: {hex(offset)}")
