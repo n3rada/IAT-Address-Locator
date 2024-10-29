@@ -22,7 +22,8 @@ If the desired function is not loaded inside IAT, the script will give you some 
 !py C:\Tools\iatloc.py CSFTPAV6 WriteProcessMemory
 ```
 
-![image](https://github.com/user-attachments/assets/d928acfe-3cc9-4112-a2a6-4a2e67765cf4)
+![image](https://github.com/user-attachments/assets/98e2eea8-25cf-4789-990a-9355eec52d0b)
+
 
 If you want to search through all the eligible modules, you can just omit the module as an argument:
 
